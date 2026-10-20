@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ansættelse, hvor reglerne gør arbejdet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #EDF0F3;
+  --sheet: #FFFFFF;
+  --ink: #18233A;
+  --muted: #5B6676;
+  --line: #CDD4DC;
+  --act: #2E5BBA;
+  --act-ink: #FFFFFF;
+  --pending: #B87900;
+  --pending-bg: #FFF4DC;
+  --done: #1F7A50;
+  --done-bg: #E3F3EA;
+  --off: #8E98A4;
+  --off-bg: #E4E8EC;
+  --focus: #2E5BBA;
+  color-scheme: light;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #10151F; --sheet: #182131; --ink: #E7ECF3; --muted: #A1ACBB; --line: #2C374A;
+    --act: #7EA2F5; --act-ink: #0E1522; --pending: #F2B640; --pending-bg: #3A2D10;
+    --done: #5CC491; --done-bg: #12301F; --off: #6C7787; --off-bg: #222B3A; --focus: #7EA2F5;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #10151F; --sheet: #182131; --ink: #E7ECF3; --muted: #A1ACBB; --line: #2C374A;
+  --act: #7EA2F5; --act-ink: #0E1522; --pending: #F2B640; --pending-bg: #3A2D10;
+  --done: #5CC491; --done-bg: #12301F; --off: #6C7787; --off-bg: #222B3A; --focus: #7EA2F5;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: inherit; }
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 17px; line-height: 1.5;
+}
+.wrap { max-width: 1240px; margin: 0 auto; padding: 40px 24px 56px; }
+header { max-width: 760px; margin-bottom: 32px; }
+h1 { font-size: clamp(34px, 5vw, 56px); line-height: 1.05; margin: 0 0 16px; font-weight: 700; letter-spacing: -0.015em; }
+.lede { font-size: 19px; color: var(--muted); margin: 0 0 14px; max-width: 64ch; }
+.note { display: inline-block; font-size: 15px; padding: 6px 12px; border-radius: 6px; background: var(--pending-bg); color: var(--ink); border-left: 4px solid var(--pending); }
+
+.app { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 24px; align-items: start; }
+.board { background: var(--sheet); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+.status { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.status p { margin: 0; font-size: 17px; }
+.status strong { font-weight: 700; }
+.btn-ghost { font: inherit; font-size: 15px; background: transparent; color: var(--act); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.btn-ghost:hover { border-color: var(--act); }
+
+.lanes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 12px; row-gap: 10px; }
+.lane-head { font-weight: 700; font-size: 15px; color: var(--muted); padding: 0 4px 8px; border-bottom: 2px solid var(--line); }
+.cell { min-height: 0; }
+.task {
+  width: 100%; text-align: left; font: inherit; font-size: 15px; line-height: 1.3; cursor: pointer;
+  border-radius: 10px; padding: 10px 12px; border: 2px solid var(--line); background: var(--sheet); color: var(--ink);
+  display: grid; gap: 4px; transition: border-color .15s, background .15s, transform .15s;
+}
+.task .name { font-weight: 700; }
+.task .state { font-size: 13px; color: var(--muted); }
+.task .who { display: none; font-size: 13px; color: var(--muted); }
+.task.enabled { border-color: var(--act); }
+.task.enabled .state { color: var(--act); }
+.task.pending { background: var(--pending-bg); border-color: var(--pending); }
+.task.pending .state { color: var(--ink); }
+.task.done { background: var(--done-bg); border-color: transparent; }
+.task.done .state { color: var(--done); }
+.task.locked { border-style: dashed; }
+.task.excluded { background: var(--off-bg); border-color: transparent; color: var(--off); }
+.task.excluded .name { text-decoration: line-through; }
+.task.selected { outline: 3px solid var(--ink); outline-offset: 2px; }
+.task:focus-visible, button:focus-visible, summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.task.flash { transform: scale(1.03); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 18px; font-size: 14px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 14px; height: 14px; border-radius: 4px; border: 2px solid var(--line); display: inline-block; }
+.sw.enabled { border-color: var(--act); }
+.sw.pending { background: var(--pending-bg); border-color: var(--pending); }
+.sw.done { background: var(--done-bg); border-color: var(--done); }
+.sw.locked { border-style: dashed; }
+.sw.excluded { background: var(--off-bg); border-color: var(--off-bg); }
+
+.doc { background: var(--sheet); border: 1px solid var(--line); border-radius: 14px; padding: 22px; position: sticky; top: calc(16px + env(safe-area-inset-top, 0px)); }
+.doc h2 { font-size: 26px; line-height: 1.15; margin: 0 0 6px; }
+.doc .role { color: var(--muted); margin: 0 0 16px; font-size: 15px; }
+.doc h3 { font-size: 15px; margin: 18px 0 6px; color: var(--muted); font-weight: 700; }
+.doc p { margin: 0 0 8px; }
+.rules { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.rules li { display: grid; grid-template-columns: 34px 1fr; gap: 8px; align-items: start; font-size: 15px; }
+.sym { font-weight: 700; font-size: 14px; text-align: center; border-radius: 6px; padding: 1px 0; background: var(--paper); color: var(--ink); }
+.why { padding: 10px 12px; border-radius: 8px; background: var(--paper); font-size: 15px; margin: 4px 0 0; }
+.do { margin-top: 18px; width: 100%; font: inherit; font-weight: 700; font-size: 17px; padding: 12px 16px; border-radius: 10px; border: none; cursor: pointer; background: var(--act); color: var(--act-ink); }
+.do:disabled { background: var(--off-bg); color: var(--off); cursor: not-allowed; }
+
+.lower { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 24px; margin-top: 24px; }
+.panel { background: var(--sheet); border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+.panel h2 { font-size: 22px; margin: 0 0 12px; }
+.panel p { margin: 0 0 10px; max-width: 70ch; }
+.dcr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; margin: 14px 0 6px; }
+.dcr div { display: grid; grid-template-columns: 34px 1fr; gap: 8px; font-size: 15px; }
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 15px; }
+.log li { display: grid; grid-template-columns: 28px 1fr; gap: 6px; }
+.log .n { color: var(--muted); }
+.empty { color: var(--muted); font-size: 15px; }
+footer { margin-top: 32px; color: var(--muted); font-size: 15px; max-width: 76ch; }
+
+@media (max-width: 980px) {
+  .app, .lower { grid-template-columns: 1fr; }
+  .doc { position: static; }
+}
+@media (max-width: 720px) {
+  .lanes { grid-template-columns: 1fr; }
+  .lane-head { display: none; }
+  .lanes .task { grid-column: 1 !important; grid-row: auto !important; }
+  .task .who { display: block; }
+  .dcr { grid-template-columns: 1fr; }
+  .wrap { padding: 24px 16px 40px; }
+}
+@media (prefers-reduced-motion: reduce) { .task { transition: none; } .task.flash { transform: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Ansættelse, hvor reglerne gør arbejdet</h1>
+    <p class="lede">En klikbar ansættelsesproces bygget med DCR-tankegang: I stedet for én fast rækkefølge styrer reglerne, hvad der må gøres, hvad der skal gøres, og hvad der lukkes. Klik på et trin for at se dokumentationen, og udfør det derfra.</p>
+    <span class="note">Illustrativt eksempel. Ikke SDU's faktiske proces, og reglerne er forenklede.</span>
+  </header>
+
+  <div class="app">
+    <section class="board" aria-labelledby="proc-h">
+      <div class="status">
+        <p id="proc-h"><strong id="statusText">Næste skridt: Opret stillingsbehov</strong></p>
+        <button class="btn-ghost" id="reset" type="button">Start forfra</button>
+      </div>
+      <div class="lanes" id="lanes" role="list"></div>
+      <div class="legend" aria-label="Forklaring">
+        <span><i class="sw pending"></i>Skal gøres</span>
+        <span><i class="sw enabled"></i>Kan gøres</span>
+        <span><i class="sw locked"></i>Låst</span>
+        <span><i class="sw done"></i>Udført</span>
+        <span><i class="sw excluded"></i>Lukket</span>
+      </div>
+    </section>
+
+    <aside class="doc" id="doc" aria-live="polite"></aside>
+  </div>
+
+  <div class="lower">
+    <section class="panel">
+      <h2>Sådan læses reglerne</h2>
+      <p>DCR (Dynamic Condition Response) beskriver en proces som regler mellem aktiviteter. Det gør det let at håndtere undtagelser, som når en kandidat trækker sig, uden at tegne alle veje på forhånd.</p>
+      <div class="dcr">
+        <div><span class="sym">→•</span><span><strong>Betingelse.</strong> Aktiviteten kan først gøres, når en anden er gjort.</span></div>
+        <div><span class="sym">•→</span><span><strong>Svar.</strong> Når aktiviteten er gjort, skal en anden gøres.</span></div>
+        <div><span class="sym">+</span><span><strong>Inkludering.</strong> Aktiviteten åbner for en anden.</span></div>
+        <div><span class="sym">%</span><span><strong>Eksklusion.</strong> Aktiviteten lukker en anden.</span></div>
+      </div>
+      <p>Sagen er i mål, når der ikke længere er noget, der skal gøres. DCR har også milepæle, som ikke er med i dette eksempel.</p>
+    </section>
+    <section class="panel">
+      <h2>Hvad er sket</h2>
+      <ol class="log" id="log"></ol>
+      <p class="empty" id="logEmpty">Intet endnu. Start med at oprette stillingsbehovet.</p>
+    </section>
+  </div>
+
+  <footer>
+    Lavet af Omar Slaiman til Thomas Friis Gjesing, SDU IT, efter vores samtale i oktober 2026. Eksemplet viser, hvordan jeg forstår DCR og procesdokumentation.
+  </footer>
+</div>
+
+<script>
+const ROLES = ['Leder', 'HR', 'Ansættelsesudvalg', 'Kandidat'];
+const T = {
+  behov:   { name: 'Opret stillingsbehov', role: 'Leder', row: 1, purpose: 'Lederen beskriver, hvorfor stillingen er nødvendig, og hvilke opgaver den skal løse.', note: 'Et godt behov sparer tid senere, fordi opslag og vurdering bygger på det.' },
+  godkend: { name: 'Godkend stilling', role: 'HR', row: 2, purpose: 'HR tjekker økonomi, stillingskategori og regler, før stillingen må slås op.' },
+  udvalg:  { name: 'Nedsæt ansættelsesudvalg', role: 'Leder', row: 3, purpose: 'Lederen sammensætter udvalget, der skal vurdere ansøgerne.' },
+  opslag:  { name: 'Slå stillingen op', role: 'HR', row: 3, purpose: 'HR offentliggør opslaget, så ansøgere kan søge.' },
+  vurder:  { name: 'Vurder ansøgere', role: 'Ansættelsesudvalg', row: 4, purpose: 'Udvalget gennemgår ansøgningerne og holder samtaler.' },
+  indstil: { name: 'Indstil kandidat', role: 'Ansættelsesudvalg', row: 5, purpose: 'Udvalget peger på den kandidat, der skal tilbydes stillingen.', note: 'Kan gøres igen, hvis den indstillede kandidat trækker sig.' },
+  kontrakt:{ name: 'Send kontrakt', role: 'HR', row: 6, purpose: 'HR udarbejder og sender kontrakten til kandidaten.' },
+  traek:   { name: 'Kandidat trækker sig', role: 'Kandidat', row: 6, purpose: 'Undtagelsen: Kandidaten siger nej, før kontrakten er underskrevet.', note: 'Lukker kontraktsporet og sender sagen tilbage til udvalget, uden at nogen skal huske det.' },
+  skriv:   { name: 'Underskriv kontrakt', role: 'Kandidat', row: 7, purpose: 'Kandidaten underskriver, og ansættelsen er på plads.' },
+  adgang:  { name: 'Bestil adgang og udstyr', role: 'HR', row: 8, purpose: 'HR bestiller it-adgang, nøglekort og udstyr, så alt er klar på første dag.' }
+};
+const REL = [
+  ['behov', 'cond', 'godkend'], ['behov', 'resp', 'godkend'],
+  ['godkend', 'cond', 'opslag'], ['godkend', 'resp', 'opslag'],
+  ['godkend', 'cond', 'udvalg'], ['godkend', 'resp', 'udvalg'],
+  ['opslag', 'cond', 'vurder'], ['udvalg', 'cond', 'vurder'], ['opslag', 'resp', 'vurder'],
+  ['vurder', 'cond', 'indstil'], ['vurder', 'resp', 'indstil'],
+  ['indstil', 'cond', 'kontrakt'], ['indstil', 'resp', 'kontrakt'],
+  ['indstil', 'incl', 'kontrakt'], ['indstil', 'incl', 'skriv'], ['indstil', 'incl', 'traek'],
+  ['kontrakt', 'cond', 'skriv'], ['kontrakt', 'resp', 'skriv'],
+  ['traek', 'excl', 'kontrakt'], ['traek', 'excl', 'skriv'], ['traek', 'excl', 'traek'], ['traek', 'resp', 'indstil'],
+  ['skriv', 'excl', 'traek'],
+  ['skriv', 'cond', 'adgang'], ['skriv', 'resp', 'adgang']
+];
+const SYM = { cond: '→•', resp: '•→', incl: '+', excl: '%' };
+let S, selected, log;
+
+function init() {
+  S = {};
+  for (const k in T) S[k] = { executed: false, pending: false, included: k !== 'traek' };
+  S.behov.pending = true;
+  selected = 'behov';
+  log = [];
+  render();
+}
+function blockers(k) {
+  return REL.filter(([a, r, b]) => r === 'cond' && b === k && S[a].included && !S[a].executed).map(([a]) => a);
+}
+function enabled(k) { return S[k].included && blockers(k).length === 0; }
+function execute(k) {
+  if (!enabled(k)) return;
+  S[k].executed = true; S[k].pending = false;
+  for (const [a, r, b] of REL) {
+    if (a !== k) continue;
+    if (r === 'resp') S[b].pending = true;
+    if (r === 'incl') S[b].included = true;
+  }
+  for (const [a, r, b] of REL) {
+    if (a !== k || r !== 'excl') continue;
+    S[b].included = false;
+    if (b !== k) S[b].executed = false;
+  }
+  if (k === 'traek') S.indstil.executed = false;
+  log.push(k);
+  const next = Object.keys(T).find(x => S[x].included && S[x].pending && enabled(x));
+  selected = next || k;
+  render(k);
+}
+function stateOf(k) {
+  const s = S[k];
+  if (!s.included) return ['excluded', 'Lukket'];
+  if (s.pending && enabled(k)) return ['pending enabled', 'Skal gøres nu'];
+  if (s.pending) return ['pending locked', 'Skal gøres, men er låst'];
+  if (s.executed) return ['done', 'Udført'];
+  if (enabled(k)) return ['enabled', 'Kan gøres'];
+  return ['locked', 'Låst'];
+}
+function ruleText(a, r, b, self) {
+  const n = x => '«' + T[x].name + '»';
+  if (r === 'cond') return self === b ? 'Kan først gøres, når ' + n(a) + ' er gjort.' : 'Skal være gjort, før ' + n(b) + ' kan gøres.';
+  if (r === 'resp') return self === a ? 'Når den er gjort, skal ' + n(b) + ' gøres.' : 'Bliver nødvendig, når ' + n(a) + ' er gjort.';
+  if (r === 'incl') return self === a ? 'Åbner for ' + n(b) + '.' : 'Åbnes af ' + n(a) + '.';
+  if (r === 'excl') return self === a ? (a === b ? 'Lukker sig selv, når den er gjort.' : 'Lukker ' + n(b) + '.') : 'Lukkes af ' + n(a) + '.';
+}
+function render(flashKey) {
+  const lanes = document.getElementById('lanes');
+  lanes.innerHTML = '';
+  ROLES.forEach((r, i) => {
+    const h = document.createElement('div');
+    h.className = 'lane-head'; h.textContent = r; h.style.gridColumn = i + 1; h.style.gridRow = 1;
+    lanes.appendChild(h);
+  });
+  const order = Object.keys(T).sort((a, b) => T[a].row - T[b].row || ROLES.indexOf(T[a].role) - ROLES.indexOf(T[b].role));
+  for (const k of order) {
+    const t = T[k];
+    const [cls, label] = stateOf(k);
+    const b = document.createElement('button');
+    b.type = 'button'; b.setAttribute('role', 'listitem');
+    b.className = 'task ' + cls + (k === selected ? ' selected' : '') + (k === flashKey ? ' flash' : '');
+    b.style.gridColumn = ROLES.indexOf(t.role) + 1; b.style.gridRow = t.row + 1;
+    b.innerHTML = '<span class="name"></span><span class="who"></span><span class="state"></span>';
+    b.querySelector('.who').textContent = t.role;
+    b.querySelector('.name').textContent = t.name;
+    const st = b.querySelector('.state'); st.textContent = label; st.dataset.role = t.role;
+    b.setAttribute('aria-pressed', k === selected);
+    b.setAttribute('aria-label', t.name + ', ' + t.role + ', ' + label);
+    b.addEventListener('click', () => { selected = k; render(); });
+    lanes.appendChild(b);
+  }
+  if (flashKey) setTimeout(() => { const f = lanes.querySelector('.flash'); if (f) f.classList.remove('flash'); }, 220);
+
+  const open = Object.keys(T).filter(k => S[k].included && S[k].pending);
+  const st = document.getElementById('statusText');
+  if (open.length === 0) st.textContent = 'Sagen er i mål. Der er ikke mere, der skal gøres.';
+  else {
+    const now = open.filter(enabled).map(k => T[k].name);
+    st.textContent = now.length ? 'Næste skridt: ' + now.join(' og ') : 'Afventer: ' + open.map(k => T[k].name).join(' og ');
+  }
+
+  const k = selected, t = T[k], [, label] = stateOf(k);
+  const doc = document.getElementById('doc');
+  const rules = REL.filter(([a, , b]) => a === k || b === k);
+  let why = '';
+  if (!S[k].included) why = 'Trinnet er lukket af en anden aktivitet og kan ikke udføres lige nu.';
+  else if (!enabled(k)) why = 'Låst, fordi ' + blockers(k).map(x => '«' + T[x].name + '»').join(' og ') + ' ikke er gjort endnu.';
+  doc.innerHTML =
+    '<h2></h2><p class="role"></p>' +
+    '<h3>Formål</h3><p class="purpose"></p>' +
+    (t.note ? '<h3>Godt at vide</h3><p class="note2"></p>' : '') +
+    '<h3>Regler</h3><ul class="rules"></ul>' +
+    (why ? '<p class="why"></p>' : '') +
+    '<button class="do" type="button"></button>';
+  doc.querySelector('h2').textContent = t.name;
+  doc.querySelector('.role').textContent = 'Udføres af: ' + t.role + '. Status: ' + label + '.';
+  doc.querySelector('.purpose').textContent = t.purpose;
+  if (t.note) doc.querySelector('.note2').textContent = t.note;
+  const ul = doc.querySelector('.rules');
+  for (const [a, r, b] of rules) {
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="sym"></span><span></span>';
+    li.firstChild.textContent = SYM[r]; li.lastChild.textContent = ruleText(a, r, b, k);
+    ul.appendChild(li);
+  }
+  if (why) doc.querySelector('.why').textContent = why;
+  const btn = doc.querySelector('.do');
+  btn.textContent = 'Udfør: ' + t.name;
+  btn.disabled = !enabled(k);
+  btn.addEventListener('click', () => execute(k));
+
+  const ol = document.getElementById('log');
+  ol.innerHTML = '';
+  log.forEach((x, i) => {
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="n"></span><span></span>';
+    li.firstChild.textContent = (i + 1) + '.';
+    li.lastChild.textContent = T[x].name + ' (' + T[x].role + ')';
+    ol.appendChild(li);
+  });
+  document.getElementById('logEmpty').hidden = log.length > 0;
+}
+document.getElementById('reset').addEventListener('click', init);
+init();
+</script>
+</body>
+</html>
